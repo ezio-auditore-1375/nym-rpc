@@ -20,16 +20,16 @@ graph TD
     Provider["🏢 RPC Provider<br/>(e.g., Infura, Alchemy)"]
     
     %% Flow arrows with descriptions
-    User -->|"1. JSON-RPC Request<br/>(HTTP POST)"| HTTPServer
-    HTTPServer -->|"2. Forward Request<br/>+ Add upstream header"| TcpProxyClient
-    TcpProxyClient -->|"3. Encrypted via Mixnet<br/>ProxiedMessage with<br/>session_id + message_id"| Mixnet
-    Mixnet -->|"4. Anonymous Delivery"| TcpProxyServer
-    TcpProxyServer -->|"5. Extract upstream address<br/>from first message"| Provider
-    Provider -->|"6. JSON-RPC Response"| TcpProxyServer
-    TcpProxyServer -->|"7. Send reply via SURB<br/>(Single Use Reply Block)"| Mixnet
-    Mixnet -->|"8. Anonymous Response"| TcpProxyClient
-    TcpProxyClient -->|"9. Forward Response"| HTTPServer
-    HTTPServer -->|"10. JSON-RPC Response"| User
+    User -->|"1: JSON-RPC Request<br/>(HTTP POST)"| HTTPServer
+    HTTPServer -->|"2: Forward Request<br/>+ Add upstream header"| TcpProxyClient
+    TcpProxyClient -->|"3: Encrypted via Mixnet<br/>ProxiedMessage with<br/>session_id + message_id"| Mixnet
+    Mixnet -->|"4: Anonymous Delivery"| TcpProxyServer
+    TcpProxyServer -->|"5: Extract upstream address<br/>from first message"| Provider
+    Provider -->|"6: JSON-RPC Response"| TcpProxyServer
+    TcpProxyServer -->|"7: Send reply via SURB<br/>(Single Use Reply Block)"| Mixnet
+    Mixnet -->|"8: Anonymous Response"| TcpProxyClient
+    TcpProxyClient -->|"9: Forward Response"| HTTPServer
+    HTTPServer -->|"10: JSON-RPC Response"| User
     
     %% Styling
     classDef userClass fill:#e1f5fe
