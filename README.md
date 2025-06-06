@@ -16,7 +16,7 @@ The system uses **full TLS encryption** end-to-end, ensuring that not even the f
 Client App → HTTP Proxy (localhost:8545) → TCP Proxy Client → Nym Mixnet → TCP Proxy Server → RPC Provider
 ```
 
-1. **Client**: Runs a local HTTP proxy server that accepts standard RPC requests
+1. **HTTP Proxy**: Runs a local HTTP proxy server that accepts standard RPC requests, forwards them to a specified provider.
 2. **TCP Proxy Client**: Inserts UPSTREAM packet information and sends through the Nym mixnet
 3. **Mixnet**: Routes requests through the Nym mixnet for privacy
 4. **TCP Proxy Server**: Receives requests from mixnet, extracts UPSTREAM packet info, and forwards to target RPC provider
