@@ -1,6 +1,8 @@
 use url::Url;
 
 const UPSTREAM: &str = "UPSTREAM:";
+/// TODO: make this configurable
+const NYM_API_BASE_URL: &str = "https://validator.nymtech.net/api";
 
 /// Adds the upstream address to the payload data
 /// Format: "UPSTREAMhost:port\n" followed by actual data
@@ -62,6 +64,104 @@ impl RpcProviderUrl {
     }
 }
 
+/// Check if a node is bonded by querying the Nym API
+/// Returns true if the node is found in the bonded nodes list, false otherwise
+pub async fn is_node_bonded(identity_key: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    let url = format!("{}/v1/nym-nodes/bonded", NYM_API_BASE_URL);
+
+    tracing::debug!(
+        "Checking if node {} is bonded via API: {}",
+        identity_key,
+        url
+    );
+
+    let response = client
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(60))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(format!("API request failed with status: {}", response.status()).into());
+    }
+
+    let json: serde_json::Value = response.json().await?;
+
+    let found = json
+        .get("data")
+        .and_then(|data| data.as_array())
+        .map(|nodes| {
+            nodes.iter().any(|node| {
+                node.get("bond_information")
+                    .and_then(|bi| bi.get("node"))
+                    .and_then(|n| n.get("identity_key"))
+                    .and_then(|ik| ik.as_str())
+                    .map(|key| key == identity_key)
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false);
+
+    if found {
+        tracing::info!("Node {} is bonded", identity_key);
+    } else {
+        tracing::info!("Node {} is not bonded", identity_key);
+    }
+
+    Ok(found)
+}
+
+/// Check if a node is described (appears in the described nodes API)
+/// Returns true if the node is found in the described nodes list, false otherwise
+pub async fn is_node_described(identity_key: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    let url = format!("{}/v1/nym-nodes/described", NYM_API_BASE_URL);
+
+    tracing::debug!(
+        "Checking if node {} is described via API: {}",
+        identity_key,
+        url
+    );
+
+    let response = client
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(format!("API request failed with status: {}", response.status()).into());
+    }
+
+    let json: serde_json::Value = response.json().await?;
+
+    // Parse the response - the API returns data in the format: {"data": [...]}
+    let found = json
+        .get("data")
+        .and_then(|data| data.as_array())
+        .map(|nodes| {
+            nodes.iter().any(|node| {
+                node.get("description")
+                    .and_then(|description| description.get("host_information"))
+                    .and_then(|host_info| host_info.get("keys"))
+                    .and_then(|keys| keys.get("ed25519"))
+                    .and_then(|node_identity| node_identity.as_str())
+                    .map(|identity_str| identity_str == identity_key)
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false);
+
+    if found {
+        tracing::info!("Node {} is described", identity_key);
+        return Ok(true);
+    }
+
+    tracing::info!("Node {} is not described", identity_key);
+    Ok(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,5 +203,49 @@ mod tests {
         let empty_data = &[];
         let (_, result) = extract_upstream_header(empty_data);
         assert_eq!(result, empty_data);
+    }
+
+    #[tokio::test]
+    async fn test_is_node_bonded_with_invalid_key() {
+        // Test with a clearly invalid/non-existent key
+        let fake_key = "invalid_identity_key_that_should_not_exist_12345";
+        let result = is_node_bonded(fake_key).await;
+
+        // Should succeed with false result (node not found)
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), false);
+    }
+
+    #[tokio::test]
+    async fn test_is_node_bonded_with_valid_key() {
+        // Test with a valid key
+        let valid_key = "26WHDRFM5QU7whg1hnxKk4iVY7DnXyZknPcNMitX6GXp";
+        let result = is_node_bonded(valid_key).await;
+
+        // Should succeed with true result (node found)
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), true);
+    }
+
+    #[tokio::test]
+    async fn test_is_node_described_with_invalid_key() {
+        // Test with a clearly invalid/non-existent key
+        let fake_key = "invalid_identity_key_that_should_not_exist_12345";
+        let result = is_node_described(fake_key).await;
+
+        // Should succeed with false result (node not found)
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), false);
+    }
+
+    #[tokio::test]
+    async fn test_is_node_described_with_valid_key() {
+        // Test with a valid key
+        let valid_key = "26WHDRFM5QU7whg1hnxKk4iVY7DnXyZknPcNMitX6GXp";
+        let result = is_node_described(valid_key).await;
+
+        // Should succeed with true result (node found)
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), true);
     }
 }

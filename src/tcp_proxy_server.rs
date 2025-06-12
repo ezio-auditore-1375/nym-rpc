@@ -8,7 +8,7 @@
 //! - Uses surbs to anonymize the response
 //! TODO: prune sessions, allowlist providers, test session_handler
 
-use crate::common::extract_upstream_header;
+use crate::common::{extract_upstream_header, is_node_bonded};
 use anyhow::Result;
 use dashmap::{DashMap, DashSet};
 use nym_network_defaults::setup_env;
@@ -44,6 +44,15 @@ pub struct TcpProxyServer {
 impl TcpProxyServer {
     /// Create mixnet client
     pub async fn new(config_dir: &str, env: Option<String>) -> Result<Self> {
+        Self::initialise(config_dir, env, true).await
+    }
+
+    /// Create mixnet client with optional validation
+    pub async fn initialise(
+        config_dir: &str,
+        env: Option<String>,
+        validate_node: bool,
+    ) -> Result<Self> {
         info!("Creating client");
 
         debug!("Loading env file: {:?}", env);
@@ -76,6 +85,32 @@ impl TcpProxyServer {
         let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
 
         info!("Client created: {}", client.nym_address());
+
+        // Verify node is bonded and described
+        let identity_key = client.nym_address().to_string();
+
+        if validate_node {
+            info!("Checking if node {} is bonded...", identity_key);
+            match is_node_bonded(&identity_key).await {
+                Ok(true) => info!("✓ Node is bonded"),
+                Ok(false) => {
+                    error!("✗ Node {} is not bonded to the Nym network", identity_key);
+                    error!(
+                        "Please bond your node with NYM tokens before running the TCP proxy server"
+                    );
+                    return Err(anyhow::anyhow!("Node is not bonded"));
+                }
+                Err(e) => {
+                    error!("Failed to check bonding status: {}", e);
+                    return Err(anyhow::anyhow!(
+                        "Failed to verify node bonding status: {}",
+                        e
+                    ));
+                }
+            }
+
+            info!("✓ Node validation passed - node is bonded");
+        }
 
         Ok(TcpProxyServer {
             sessions: DashMap::new(),
@@ -324,7 +359,12 @@ mod tests {
     #[tokio::test]
     async fn test_run_with_shutdown() -> Result<()> {
         let config_dir = TempDir::new()?;
-        let mut server = TcpProxyServer::new(config_dir.path().to_str().unwrap(), None).await?;
+        let mut server = TcpProxyServer::initialise(
+            config_dir.path().to_str().unwrap(),
+            None,
+            false, // Skip validation in tests
+        )
+        .await?;
 
         // Getter for shutdown signal tx
         let shutdown_tx = server.disconnect_signal();
