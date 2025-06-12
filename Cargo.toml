@@ -20,12 +20,19 @@ dirs = "6.0.0"
 nym-bin-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.10-brie" }
 nym-network-defaults = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.10-brie" }
 nym-sdk = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.10-brie" }
+nym-crypto = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.10-brie" }
+nym-node-requests = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.10-brie", features = [
+  "client",
+] }
+nym-http-api-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.10-brie" }
+gethostname = "0.4"
 rustyline = "16.0.0"
 tempfile = "3.20.0"
 tokio = { version = "1.45.1", features = ["full"] }
 tokio-stream = "0.1.17"
 tokio-util = "0.7.15"
 tracing = "0.1.41"
+tracing-subscriber = "0.3"
 uuid = "1.17.0"
 axum = "0.7"
 tower = "0.4"

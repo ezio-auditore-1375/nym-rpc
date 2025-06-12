@@ -1858,6 +1858,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gethostname"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0176e0459c2e4a1fe232f984bca6890e681076abb9934f6cea7c326f3fc47818"
+dependencies = [
+ "libc",
+ "windows-targets 0.48.5",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3559,12 +3569,14 @@ name = "nym-node-requests"
 version = "0.1.0"
 source = "git+https://github.com/nymtech/nym.git?branch=release%2F2025.10-brie#ac12455f97b0141fa2ef7d7ceeca725fc13a4fc3"
 dependencies = [
+ "async-trait",
  "celes",
  "humantime",
  "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
+ "nym-http-api-client",
  "nym-wireguard-types",
  "schemars",
  "serde",
@@ -3633,9 +3645,13 @@ dependencies = [
  "clap",
  "dashmap 6.1.0",
  "dirs 6.0.0",
+ "gethostname",
  "hyper 1.6.0",
  "nym-bin-common",
+ "nym-crypto",
+ "nym-http-api-common",
  "nym-network-defaults",
+ "nym-node-requests",
  "nym-sdk",
  "reqwest 0.12.18",
  "rustyline",
@@ -3648,6 +3664,7 @@ dependencies = [
  "tower 0.4.13",
  "tower-http 0.5.2",
  "tracing",
+ "tracing-subscriber",
  "url",
  "uuid",
 ]
