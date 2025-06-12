@@ -9,9 +9,9 @@
 //! TODO: prune sessions, allowlist providers, test session_handler
 
 use crate::common::{extract_upstream_header, is_node_bonded};
+use crate::sign;
 use anyhow::Result;
 use dashmap::{DashMap, DashSet};
-use nym_contracts_common::signing::MessageSignature;
 use nym_network_defaults::setup_env;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::mixnet::{
@@ -30,11 +30,7 @@ use tracing::{debug, error, info};
 use uuid::Uuid;
 
 // HTTP API imports - reuse Nym's components where possible
-use axum::{
-    Json, Router,
-    extract::{Query, State},
-    response::Html,
-};
+use axum::{Json, Router, extract::State, response::Html};
 use nym_node_requests::api::v1::health::models::NodeHealth;
 use nym_node_requests::api::v1::node::models::{
     AuxiliaryDetails, BinaryBuildInformationOwned, HostInformation, HostKeys, NodeDescription,
@@ -311,13 +307,9 @@ impl TcpProxyServer {
         Ok(handle)
     }
 
-    pub fn sign(&self, payload: &str) -> Result<MessageSignature> {
-        let payload = payload.as_bytes();
-        let signature = self.mixnet_client.sign(payload);
-
-        Ok(MessageSignature::from(
-            signature.to_base58_string().as_bytes(),
-        ))
+    pub async fn sign(&self, payload: &str) -> Result<()> {
+        sign::execute(self.mixnet_client.identity_keypair().private_key(), payload).await?;
+        Ok(())
     }
 
     pub async fn run_with_shutdown(&mut self) -> Result<()> {

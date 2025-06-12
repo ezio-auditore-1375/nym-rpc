@@ -167,26 +167,8 @@ async fn run_sign(
 
     info!("Nym address: {}", server.nym_address());
 
-    // Sign the message
-    let signature = server.sign(&message)?;
-
-    match format.as_str() {
-        "base58" => {
-            info!("Message: {}", message);
-            info!("Signature (base58): {}", signature.as_bs58_string());
-        }
-        "hex" => {
-            info!("Message: {}", message);
-            info!("Signature (hex): {}", hex::encode(signature.as_ref()));
-        }
-        _ => {
-            error!(
-                "Invalid format '{}'. Supported formats: base58, hex",
-                format
-            );
-            return Err(anyhow::anyhow!("Invalid format"));
-        }
-    }
+    // Sign the message, this prints it too
+    server.sign(&message).await?;
 
     Ok(())
 }
