@@ -107,7 +107,7 @@ impl TcpProxyServer {
         env: Option<String>,
         http_config: TcpProxyHttpConfig,
     ) -> Result<Self> {
-        Self::initialise_with_http(config_dir, env, false, Some(http_config)).await
+        Self::initialise_with_http(config_dir, env, true, Some(http_config)).await
     }
 
     /// Create mixnet client with optional validation
