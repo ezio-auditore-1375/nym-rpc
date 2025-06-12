@@ -11,6 +11,7 @@
 use crate::common::{extract_upstream_header, is_node_bonded};
 use anyhow::Result;
 use dashmap::{DashMap, DashSet};
+use nym_contracts_common::signing::MessageSignature;
 use nym_network_defaults::setup_env;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::mixnet::{
@@ -226,8 +227,8 @@ impl TcpProxyServer {
         // Define what services your TCP proxy provides
         let roles = NodeRoles {
             mixnode_enabled: false,
-            gateway_enabled: false, // Your TCP proxy acts as a gateway
-            network_requester_enabled: false, // You provide network requesting
+            gateway_enabled: false,
+            network_requester_enabled: false,
             ip_packet_router_enabled: false,
         };
 
@@ -308,6 +309,15 @@ impl TcpProxyServer {
         });
 
         Ok(handle)
+    }
+
+    pub fn sign(&self, payload: &str) -> Result<MessageSignature> {
+        let payload = payload.as_bytes();
+        let signature = self.mixnet_client.sign(payload);
+
+        Ok(MessageSignature::from(
+            signature.to_base58_string().as_bytes(),
+        ))
     }
 
     pub async fn run_with_shutdown(&mut self) -> Result<()> {
