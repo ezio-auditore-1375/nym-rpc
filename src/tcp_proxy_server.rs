@@ -218,14 +218,14 @@ impl TcpProxyServer {
         };
 
         let host_information = HostInformation {
-            ip_address: vec!["127.0.0.1".parse().unwrap()], // Replace with your actual IP
+            ip_address: vec!["95.216.196.110".parse().unwrap()], // Replace with your actual IP
             hostname: None,
             keys,
         };
 
         // Define what services your TCP proxy provides
         let roles = NodeRoles {
-            mixnode_enabled: false,
+            mixnode_enabled: true,
             gateway_enabled: false, // Your TCP proxy acts as a gateway
             network_requester_enabled: false, // You provide network requesting
             ip_packet_router_enabled: false,
