@@ -55,10 +55,6 @@ enum Commands {
         /// Message to sign
         #[clap(short, long)]
         message: String,
-
-        /// Output format (base58 or hex)
-        #[clap(long, default_value = "base58")]
-        format: String,
     },
 }
 
@@ -96,8 +92,7 @@ async fn main() -> Result<()> {
             config_dir,
             env,
             message,
-            format,
-        } => run_sign(config_dir, env, message, format).await,
+        } => run_sign(config_dir, env, message).await,
     }
 }
 
@@ -152,12 +147,7 @@ async fn run_server(
     Ok(())
 }
 
-async fn run_sign(
-    config_dir: PathBuf,
-    env: Option<String>,
-    message: String,
-    format: String,
-) -> Result<()> {
+async fn run_sign(config_dir: PathBuf, env: Option<String>, message: String) -> Result<()> {
     info!("Signing message with Nym client identity...");
 
     let config_dir = config_dir.to_string_lossy().to_string();
