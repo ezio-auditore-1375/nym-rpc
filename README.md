@@ -50,4 +50,26 @@ TODO
 
 ## Usage
 
-TODO
+Temporary usage of the current implementation.
+Will be updated later on once discoverability is added.
+
+1. Run a `nym-rpc-server` on a VM.
+2. Bond it as you would a NYM node.
+
+- Use `nym-rpc-server sign` to sign the message
+
+3. Run `nym-rpc-client` on your laptop.
+
+```bash
+nym-rpc-client -s <nym-rpc-server-address> --rpc-provider <RPC_PROVIDER_URL>
+```
+
+4. Confirm it works
+
+```bash
+curl -vX POST http://localhost:8545 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
+5. Connect to metamask (http://localhost:8545)

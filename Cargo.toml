@@ -4,11 +4,11 @@ version = "0.0.1"
 edition = "2024"
 
 [[bin]]
-name = "client"
+name = "nym-rpc-client"
 path = "src/bin/client.rs"
 
 [[bin]]
-name = "server"
+name = "nym-rpc-server"
 path = "src/bin/server.rs"
 
 [dependencies]
