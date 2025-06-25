@@ -8,8 +8,7 @@
 //! - Uses surbs to anonymize the response
 //! TODO: prune sessions, allowlist providers, test session_handler
 
-use crate::common::{extract_upstream_header, is_node_bonded};
-use crate::sign;
+use crate::common::extract_upstream_header;
 use anyhow::Result;
 use dashmap::{DashMap, DashSet};
 use nym_network_defaults::setup_env;
@@ -95,7 +94,7 @@ pub struct TcpProxyServer {
 impl TcpProxyServer {
     /// Create mixnet client
     pub async fn new(config_dir: &str, env: Option<String>) -> Result<Self> {
-        Self::initialise(config_dir, env, false).await
+        Self::initialise(config_dir, env).await
     }
 
     /// Create mixnet client with HTTP API enabled
@@ -104,23 +103,18 @@ impl TcpProxyServer {
         env: Option<String>,
         http_config: TcpProxyHttpConfig,
     ) -> Result<Self> {
-        Self::initialise_with_http(config_dir, env, false, Some(http_config)).await
+        Self::initialise_with_http(config_dir, env, Some(http_config)).await
     }
 
     /// Create mixnet client with optional validation
-    pub async fn initialise(
-        config_dir: &str,
-        env: Option<String>,
-        validate_node: bool,
-    ) -> Result<Self> {
-        Self::initialise_with_http(config_dir, env, validate_node, None).await
+    pub async fn initialise(config_dir: &str, env: Option<String>) -> Result<Self> {
+        Self::initialise_with_http(config_dir, env, None).await
     }
 
     /// Create mixnet client with optional validation and HTTP configuration
     pub async fn initialise_with_http(
         config_dir: &str,
         env: Option<String>,
-        validate_node: bool,
         http_config: Option<TcpProxyHttpConfig>,
     ) -> Result<Self> {
         info!("Creating client");
@@ -155,32 +149,6 @@ impl TcpProxyServer {
         let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
 
         info!("Client created: {}", client.nym_address());
-
-        // Verify node is bonded and described
-        let identity_key = client.nym_address().to_string();
-
-        if validate_node {
-            info!("Checking if node {} is bonded...", identity_key);
-            match is_node_bonded(&identity_key).await {
-                Ok(true) => info!("✓ Node is bonded"),
-                Ok(false) => {
-                    error!("✗ Node {} is not bonded to the Nym network", identity_key);
-                    error!(
-                        "Please bond your node with NYM tokens before running the TCP proxy server"
-                    );
-                    return Err(anyhow::anyhow!("Node is not bonded"));
-                }
-                Err(e) => {
-                    error!("Failed to check bonding status: {}", e);
-                    return Err(anyhow::anyhow!(
-                        "Failed to verify node bonding status: {}",
-                        e
-                    ));
-                }
-            }
-
-            info!("✓ Node validation passed - node is bonded");
-        }
 
         Ok(TcpProxyServer {
             sessions: DashMap::new(),
@@ -305,11 +273,6 @@ impl TcpProxyServer {
         });
 
         Ok(handle)
-    }
-
-    pub async fn sign(&self, payload: &str) -> Result<()> {
-        sign::execute(self.mixnet_client.identity_keypair().private_key(), payload).await?;
-        Ok(())
     }
 
     pub async fn run_with_shutdown(&mut self) -> Result<()> {
@@ -625,12 +588,8 @@ mod tests {
     #[tokio::test]
     async fn test_run_with_shutdown() -> Result<()> {
         let config_dir = TempDir::new()?;
-        let mut server = TcpProxyServer::initialise(
-            config_dir.path().to_str().unwrap(),
-            None,
-            false, // Skip validation in tests
-        )
-        .await?;
+        let mut server =
+            TcpProxyServer::initialise(config_dir.path().to_str().unwrap(), None).await?;
 
         // Getter for shutdown signal tx
         let shutdown_tx = server.disconnect_signal();

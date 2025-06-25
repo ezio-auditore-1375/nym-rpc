@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_rpc::tcp_proxy_server::{TcpProxyHttpConfig, TcpProxyServer};
 use std::path::PathBuf;
@@ -10,52 +10,29 @@ use tracing_subscriber;
 #[command(name = "nym-rpc-server")]
 #[command(about = "Nym RPC tools for TCP proxy and message signing")]
 struct Args {
-    #[command(subcommand)]
-    command: Commands,
-}
+    /// Path to the configuration directory
+    #[clap(short, long, default_value = ".")]
+    config_dir: PathBuf,
 
-#[derive(Debug, Subcommand)]
-enum Commands {
-    /// Run a Nym TCP proxy server
-    Server {
-        /// Path to the configuration directory
-        #[clap(short, long, default_value = ".")]
-        config_dir: PathBuf,
+    /// Environment file path
+    #[clap(short, long)]
+    env: Option<String>,
 
-        /// Environment file path
-        #[clap(short, long)]
-        env: Option<String>,
+    /// HTTP API bind address
+    #[clap(long, default_value = "0.0.0.0:8080")]
+    http_bind_address: String,
 
-        /// HTTP API bind address
-        #[clap(long, default_value = "0.0.0.0:8080")]
-        http_bind_address: String,
+    /// Node description name/moniker
+    #[clap(long, default_value = "Nym TCP Proxy Server")]
+    description_name: String,
 
-        /// Node description name/moniker
-        #[clap(long, default_value = "Nym TCP Proxy Server")]
-        description_name: String,
+    /// Node description details
+    #[clap(long, default_value = "Anonymous TCP proxy using Nym mixnet")]
+    description_text: String,
 
-        /// Node description details
-        #[clap(long, default_value = "Anonymous TCP proxy using Nym mixnet")]
-        description_text: String,
-
-        /// Node website/link (optional)
-        #[clap(long)]
-        description_link: Option<String>,
-    },
-    /// Sign a message using the Nym client identity
-    Sign {
-        /// Path to the configuration directory
-        #[clap(short, long, default_value = ".")]
-        config_dir: PathBuf,
-
-        /// Environment file path
-        #[clap(short, long)]
-        env: Option<String>,
-
-        /// Message to sign
-        #[clap(short, long)]
-        message: String,
-    },
+    /// Node website/link (optional)
+    #[clap(long)]
+    description_link: Option<String>,
 }
 
 #[tokio::main]
@@ -69,31 +46,15 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    match args.command {
-        Commands::Server {
-            config_dir,
-            env,
-            http_bind_address,
-            description_name,
-            description_text,
-            description_link,
-        } => {
-            run_server(
-                config_dir,
-                env,
-                http_bind_address,
-                description_name,
-                description_text,
-                description_link,
-            )
-            .await
-        }
-        Commands::Sign {
-            config_dir,
-            env,
-            message,
-        } => run_sign(config_dir, env, message).await,
-    }
+    run_server(
+        args.config_dir,
+        args.env,
+        args.http_bind_address,
+        args.description_name,
+        args.description_text,
+        args.description_link,
+    )
+    .await
 }
 
 async fn run_server(
@@ -144,21 +105,5 @@ async fn run_server(
     }
 
     info!("Server shut down gracefully");
-    Ok(())
-}
-
-async fn run_sign(config_dir: PathBuf, env: Option<String>, message: String) -> Result<()> {
-    info!("Signing message with Nym client identity...");
-
-    let config_dir = config_dir.to_string_lossy().to_string();
-
-    // Create a minimal server instance just to access signing functionality
-    let server = TcpProxyServer::new(&config_dir, env).await?;
-
-    info!("Nym address: {}", server.nym_address());
-
-    // Sign the message, this prints it too
-    server.sign(&message).await?;
-
     Ok(())
 }
