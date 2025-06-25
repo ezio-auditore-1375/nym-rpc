@@ -28,7 +28,7 @@ pub struct NymProxyClient {
     listen_address: String,
     listen_port: String,
     close_timeout: u64,
-    conn_pool: ClientPool,
+    conn_pool: Arc<ClientPool>,
     cancel_token: CancellationToken,
 }
 
@@ -50,7 +50,7 @@ impl NymProxyClient {
             listen_address: listen_address.to_string(),
             listen_port: listen_port.to_string(),
             close_timeout,
-            conn_pool: ClientPool::new(default_client_amount),
+            conn_pool: Arc::new(ClientPool::new(default_client_amount)),
             cancel_token: CancellationToken::new(),
         })
     }
@@ -61,7 +61,7 @@ impl NymProxyClient {
         let listener =
             TcpListener::bind(format!("{}:{}", self.listen_address, self.listen_port)).await?;
 
-        let client_maker = self.conn_pool.clone();
+        let client_maker = Arc::clone(&self.conn_pool);
         tokio::spawn(async move {
             client_maker.start().await?;
             Ok::<(), anyhow::Error>(())
@@ -76,7 +76,7 @@ impl NymProxyClient {
                             self.server_address,
                             self.upstream_address.clone(),
                             self.close_timeout,
-                            self.conn_pool.clone(),
+                            Arc::clone(&self.conn_pool),
                             self.cancel_token.clone(),
                         ));
                 }
@@ -110,7 +110,7 @@ impl NymProxyClient {
         server_address: Recipient,
         upstream_address: String,
         close_timeout: u64,
-        conn_pool: ClientPool,
+        conn_pool: Arc<ClientPool>,
         cancel_token: CancellationToken,
     ) -> Result<()> {
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
@@ -127,14 +127,11 @@ impl NymProxyClient {
                 client
             }
             None => {
-                info!(
-                    "Not enough clients in pool, creating ephemeral client with disabled cover traffic"
-                );
+                info!("Not enough clients in pool, creating ephemeral client");
                 let net = NymNetworkDetails::new_from_env();
 
                 let client = MixnetClientBuilder::new_ephemeral()
                     .network_details(net)
-                    // .debug_config(debug_config)
                     .build()?
                     .connect_to_mixnet()
                     .await?;
