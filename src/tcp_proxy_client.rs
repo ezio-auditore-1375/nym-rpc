@@ -21,11 +21,6 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument};
 
-const DEFAULT_CLOSE_TIMEOUT: u64 = 60; // seconds
-const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";
-const DEFAULT_LISTEN_PORT: &str = "8080";
-const DEFAULT_CLIENT_POOL_SIZE: usize = 2;
-
 #[derive(Clone)]
 pub struct NymProxyClient {
     server_address: Recipient,
@@ -58,24 +53,6 @@ impl NymProxyClient {
             conn_pool: ClientPool::new(default_client_amount),
             cancel_token: CancellationToken::new(),
         })
-    }
-
-    // server_address is the Nym address of the NymProxyServer to communicate with.
-    pub async fn new_with_defaults(
-        server_address: Recipient,
-        upstream_address: String,
-        env: Option<String>,
-    ) -> Result<Self> {
-        NymProxyClient::new(
-            server_address,
-            upstream_address,
-            DEFAULT_LISTEN_HOST,
-            DEFAULT_LISTEN_PORT,
-            DEFAULT_CLOSE_TIMEOUT,
-            env,
-            DEFAULT_CLIENT_POOL_SIZE,
-        )
-        .await
     }
 
     pub async fn run(&self) -> Result<()> {
@@ -154,13 +131,6 @@ impl NymProxyClient {
                     "Not enough clients in pool, creating ephemeral client with disabled cover traffic"
                 );
                 let net = NymNetworkDetails::new_from_env();
-
-                // // Create debug config with cover traffic disabled
-                // let mut debug_config = nym_sdk::DebugConfig::default();
-                // debug_config
-                //     .traffic
-                //     .disable_main_poisson_packet_distribution = true;
-                // debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
 
                 let client = MixnetClientBuilder::new_ephemeral()
                     .network_details(net)

@@ -35,7 +35,7 @@ struct Args {
     env_path: Option<String>,
 
     /// How many clients to have running in reserve for quick access by incoming connections
-    #[clap(long, default_value_t = 1)]
+    #[clap(long, default_value_t = 2)]
     client_pool_reserve: usize,
 
     /// Provider URL (e.g., https://mainnet.infura.io/v3/YOUR_PROJECT_ID)
