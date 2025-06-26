@@ -8,8 +8,9 @@ use anyhow::Result;
 use dashmap::DashSet;
 use nym_network_defaults::setup_env;
 use nym_sdk::client_pool::ClientPool;
-use nym_sdk::mixnet::Recipient;
-use nym_sdk::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
+use nym_sdk::mixnet::{
+    IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails, Recipient,
+};
 use nym_sdk::tcp_proxy::utils::{MessageBuffer, Payload, ProxiedMessage};
 use std::sync::Arc;
 use tokio::{
@@ -127,9 +128,9 @@ impl NymProxyClient {
                 client
             }
             None => {
-                info!("Not enough clients in pool, creating ephemeral client");
-                let net = NymNetworkDetails::new_from_env();
+                info!("Not enough clients in pool, rejecting connection");
 
+                let net = NymNetworkDetails::new_from_env();
                 let client = MixnetClientBuilder::new_ephemeral()
                     .network_details(net)
                     .build()?
