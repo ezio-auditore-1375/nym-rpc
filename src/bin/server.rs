@@ -4,7 +4,6 @@ use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_rpc::api_server::{TcpProxyHttpConfig, start_http_server};
 use nym_rpc::tcp_proxy_server::TcpProxyServer;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tracing::{error, info};
 
 #[derive(Debug, Parser)]
@@ -60,13 +59,7 @@ async fn main() -> Result<()> {
     let mut server = TcpProxyServer::new(&config_dir, args.env).await?;
 
     // Start HTTP server if enabled
-    let _http_handle = start_http_server(
-        &server.nym_address(),
-        Arc::new(server.sessions().clone()),
-        startup_time,
-        &http_config,
-    )
-    .await?;
+    let _http_handle = start_http_server(&server.nym_address(), startup_time, &http_config).await?;
 
     info!("✓ Server initialized successfully");
     info!("Nym address: {}", server.nym_address());
