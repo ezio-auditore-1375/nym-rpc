@@ -35,33 +35,32 @@ See [architecture diagram](./docs/architecture_diagram.mmd) for visual represent
 
 Major tasks before the project is turned in.
 
-- announce and discover RPC server
+- add set of known nodes
 - detect misbehaving nodes
 
-Minor
+### Later
 
-- disable cover traffic
 - allowlist
 - memory: prune sessions
+- node discovery
 
 ## Installation
 
-TODO
+```bash
+cargo build --release
+```
 
 ## Usage
 
 Temporary usage of the current implementation.
 Will be updated later on once discoverability is added.
 
-1. Run a `nym-rpc-server` on a VM.
-2. Bond it as you would a NYM node.
-
-- Use `nym-rpc-server sign` to sign the message
-
-3. Run `nym-rpc-client` on your laptop.
+1. Run a `nym-rpc-server` on a VM
+2. Copy it's NYM address displayed in the logs
+3. Run `nym-rpc-client` on your laptop and specify `nym-rpc-server` as exit-node.
 
 ```bash
-nym-rpc-client -s <nym-rpc-server-address> --rpc-provider <RPC_PROVIDER_URL>
+nym-rpc-client -x <nym-rpc-server-address> -r <RPC_PROVIDER_URL>
 ```
 
 4. Confirm it works
@@ -72,4 +71,4 @@ curl -vX POST http://localhost:8545 \
   -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
 ```
 
-5. Connect to metamask (http://localhost:8545)
+5. Connect with your wallet (http://localhost:8545)
