@@ -49,3 +49,4 @@ hyper = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 url = "2.5"
 bs58 = "0.5.1"
+rand = "0.9.1"

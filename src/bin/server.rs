@@ -18,7 +18,7 @@ struct Args {
     api_listen_address: String,
 
     // listen port for the HTTP API
-    #[clap(long, default_value = "8000")]
+    #[clap(long, default_value = "8080")]
     api_listen_port: u16,
 
     // path to the NYM client configuration directory

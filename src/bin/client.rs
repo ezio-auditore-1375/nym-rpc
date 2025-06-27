@@ -1,9 +1,11 @@
 use anyhow::Result;
 use clap::Parser;
-use nym_rpc::common::RpcProviderUrl;
+use nym_rpc::common::{KNOWN_EXIT_NODE_API_URLS, RpcProviderUrl, get_nym_address_from_api};
 use nym_rpc::http_proxy_server::{HttpProxyConfig, start_http_proxy_server};
 use nym_rpc::tcp_proxy_client::TcpProxyClient;
 use nym_sdk::mixnet::Recipient;
+use rand::Rng;
+use tracing::debug;
 
 #[derive(Parser, Debug)]
 #[command(name = "nym-rpc-client")]
@@ -34,7 +36,7 @@ struct Args {
     // where to forward the RPC requests to (nym-rpc-server nym address)
     // if none provided we randomly pick a known exit node
     #[clap(short = 'x', long)]
-    exit_node_address: String,
+    exit_node_address: Option<String>,
 
     // how many clients to have running in reserve
     #[clap(long, default_value_t = 2)]
@@ -56,9 +58,17 @@ async fn main() -> Result<()> {
     nym_bin_common::logging::setup_tracing_logger();
     let args = Args::parse();
 
-    // where to forward the RPC requests to
-    let exit_node_address: Recipient =
-        Recipient::try_from_base58_string(&args.exit_node_address).expect("Invalid server address");
+    // if exit node address is provided use it
+    // otherwise pick a random known exit node
+    // and get the Nym address from the API
+    let exit_node_address: Recipient = if let Some(address) = args.exit_node_address {
+        Recipient::try_from_base58_string(&address).expect("Invalid server address")
+    } else {
+        let exit_node =
+            KNOWN_EXIT_NODE_API_URLS[rand::rng().random_range(0..KNOWN_EXIT_NODE_API_URLS.len())];
+        get_nym_address_from_api(exit_node).await
+    };
+    debug!("using exit node address: {}", exit_node_address);
 
     // extract HOST from RPC provider URL
     let rpc_provider = RpcProviderUrl::new(&args.rpc_provider);
@@ -74,9 +84,6 @@ async fn main() -> Result<()> {
         args.client_pool_reserve,
     )
     .await?;
-
-    // internal TCP proxy address
-    let tcp_proxy_address = format!("{}:{}", args.listen_address, args.tcp_proxy_port);
 
     // create HTTP server configuration
     let http_config = HttpProxyConfig {

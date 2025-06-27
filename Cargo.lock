@@ -3659,6 +3659,7 @@ dependencies = [
  "nym-node-requests",
  "nym-sdk",
  "nym-types",
+ "rand 0.9.1",
  "reqwest 0.12.20",
  "rustyline",
  "serde",

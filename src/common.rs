@@ -1,3 +1,4 @@
+use nym_sdk::mixnet::Recipient;
 use url::Url;
 
 const UPSTREAM: &str = "UPSTREAM:";
@@ -105,4 +106,29 @@ mod tests {
         let (_, result) = extract_upstream_header(empty_data);
         assert_eq!(result, empty_data);
     }
+}
+
+// list of known exit nodes
+pub const KNOWN_EXIT_NODE_API_URLS: &[&str] = &[
+    "178.156.187.131:8000",
+    "138.199.156.168:8000",
+    "49.12.199.110:8000",
+    "95.216.196.110:8000",
+];
+
+/// get the Nym address from the exit node API
+pub async fn get_nym_address_from_api(exit_node_api_url: &str) -> Recipient {
+    let url = format!("http://{}/api/v1/nym-address", exit_node_api_url);
+    let response = reqwest::get(&url)
+        .await
+        .expect("Failed to get response from exit node API");
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .expect("Failed to parse JSON response");
+    let nym_address = json["nym_address"]
+        .as_str()
+        .expect("No nym_address field in response")
+        .to_string();
+    Recipient::try_from_base58_string(nym_address).unwrap()
 }
