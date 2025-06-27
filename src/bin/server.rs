@@ -1,8 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
 use nym_node_requests::api::v1::node::models::NodeDescription;
-use nym_rpc::tcp_proxy_server::{TcpProxyHttpConfig, TcpProxyServer};
+use nym_rpc::api_server::{TcpProxyHttpConfig, start_http_server};
+use nym_rpc::tcp_proxy_server::TcpProxyServer;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tracing::{error, info};
 
 #[derive(Debug, Parser)]
@@ -16,11 +18,11 @@ struct Args {
     api_listen_address: String,
 
     // listen port for the HTTP API
-    #[clap(long, default_value = "8545")]
+    #[clap(long, default_value = "8000")]
     api_listen_port: u16,
 
     // path to the NYM client configuration directory
-    #[clap(short, long, default_value = ".")]
+    #[clap(short, long, default_value = "/tmp/nym-rpc-server")]
     config_dir: PathBuf,
 
     // nym env filepath to create the nym client with
@@ -33,6 +35,7 @@ struct Args {
 async fn main() -> Result<()> {
     nym_bin_common::logging::setup_tracing_logger();
     let args = Args::parse();
+    let startup_time = std::time::Instant::now();
 
     info!("Starting Nym TCP Proxy Server...");
 
@@ -54,10 +57,16 @@ async fn main() -> Result<()> {
         expose_system_info: true,
     };
 
-    let mut server = TcpProxyServer::new_with_http(&config_dir, args.env, http_config).await?;
+    let mut server = TcpProxyServer::new(&config_dir, args.env).await?;
 
     // Start HTTP server if enabled
-    let _http_handle = server.start_http_server().await?;
+    let _http_handle = start_http_server(
+        &server.nym_address(),
+        Arc::new(server.sessions().clone()),
+        startup_time,
+        &http_config,
+    )
+    .await?;
 
     info!("✓ Server initialized successfully");
     info!("Nym address: {}", server.nym_address());
