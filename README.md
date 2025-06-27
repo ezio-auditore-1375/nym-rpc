@@ -35,7 +35,6 @@ See [architecture diagram](./docs/architecture_diagram.mmd) for visual represent
 
 Major tasks before the project is turned in.
 
-- add set of known nodes
 - detect misbehaving nodes
 
 ### Later
