@@ -53,7 +53,6 @@ async fn main() -> Result<()> {
     // we are launching a TCP proxy server and an HTTP proxy server
     // user connects to the HTTP proxy server
     // and the HTTP proxy server forwards the requests to the TCP proxy server
-    // TODO: randomly pick a known exit node if none provided
 
     nym_bin_common::logging::setup_tracing_logger();
     let args = Args::parse();
