@@ -52,12 +52,10 @@ cargo build --release
 
 ## Usage
 
-Temporary usage of the current implementation.
-Will be updated later on once discoverability is added.
-
-1. Run a `nym-rpc-server` on a VM
+1. (optional) Run a `nym-rpc-server` on a VM
 2. Copy it's NYM address displayed in the logs
 3. Run `nym-rpc-client` on your laptop and specify `nym-rpc-server` as exit-node.
+4. If you don't specify an exit-node, it will use one of the four available.
 
 ```bash
 nym-rpc-client -x <nym-rpc-server-address> -r <RPC_PROVIDER_URL>
