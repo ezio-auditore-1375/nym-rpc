@@ -43,9 +43,10 @@ pub struct RpcProviderUrl {
     pub scheme: String,
 }
 
+/// extracts the host, port, path, and scheme from the RPC provider URL
 impl RpcProviderUrl {
-    pub fn new(rpc_provider_url: &str) -> Self {
-        let rpc_url = Url::parse(&rpc_provider_url).unwrap();
+    pub fn new(rpc_provider: &str) -> Self {
+        let rpc_url = Url::parse(&rpc_provider).unwrap();
         let rpc_host = rpc_url.host_str().unwrap();
         let rpc_scheme = rpc_url.scheme();
         let rpc_default_port = if rpc_scheme == "https" { 443 } else { 80 };

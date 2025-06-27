@@ -14,60 +14,54 @@ use axum::{
     routing::any,
 };
 use reqwest::Client;
-use std::{
-    net::{IpAddr, SocketAddr},
-    time::Duration,
-};
+use std::net::{IpAddr, SocketAddr};
+use std::time::Duration;
 use tokio::{signal, time::Instant};
 use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{error, info};
-use url::Url;
 
-/// Configuration for the MetaMask proxy server
+/// configuration for the HTTP proxy server
 #[derive(Clone)]
-pub struct ProxyConfig {
-    /// Address to listen on (typically 127.0.0.1)
+pub struct HttpProxyConfig {
+    // address to listen on (typically 127.0.0.1)
     pub listen_address: String,
-    /// Port to listen on (typically 8545 for RPC)
+    // port to listen on (typically 8545 for RPC)
     pub listen_port: u16,
-    /// TPC proxy URL to forward requests to
-    pub tcp_proxy_url: String,
-    /// Request timeout duration
-    pub timeout: Duration,
-    /// RPC provider URL
-    pub rpc_provider_url: RpcProviderUrl,
+    // TCP proxy URL to forward requests to
+    pub tcp_proxy_port: u16,
+    // request timeout in seconds
+    pub request_timeout: u64,
+    // RPC provider URL
+    pub rpc_provider: RpcProviderUrl,
 }
 
-/// Shared state for the proxy server
+// http server state
 #[derive(Clone)]
 struct AppState {
     client: Client,
-    config: ProxyConfig,
+    config: HttpProxyConfig,
 }
 
-/// Start the proxy server
-pub async fn start_proxy_server(config: ProxyConfig) -> Result<()> {
-    info!("🚀 Starting RPC Proxy Server");
-    info!(
-        "📍 Listening on: http://{}:{}",
-        config.listen_address, config.listen_port
-    );
-    info!("🔗 Forwarding to NYM TCP proxy: {}", config.tcp_proxy_url);
+/// start the HTTP proxy server
+pub async fn start_http_proxy_server(config: HttpProxyConfig) -> Result<()> {
+    // we are launching the HTTP proxy server
+    // and forward to the TCP proxy
 
-    // Parse the TCP proxy URL to get the proxy address
-    let proxy_url = Url::parse(&format!("http://{}", config.tcp_proxy_url))?;
-    let proxy_host = proxy_url.host_str().unwrap_or("127.0.0.1");
-    let proxy_port = proxy_url.port().unwrap_or(8080);
-    let proxy_addr = format!("{}:{}", proxy_host, proxy_port);
+    info!("🚀 Starting RPC Proxy Server");
+
+    let http_bind_address = format!("{}:{}", config.listen_address, config.listen_port);
+    let tcp_proxy_address = format!("{}:{}", config.listen_address, config.tcp_proxy_port);
+    info!("📍 Listening on: http://{}", http_bind_address);
+    info!("🔗 Forwarding to mixer TCP proxy: {}", tcp_proxy_address);
 
     let client = Client::builder()
-        .timeout(config.timeout)
-        // Create HTTP client with custom DNS resolution to proxy
-        // This mimics curl's --resolve flag: resolve the real hostname to our proxy address
+        .timeout(Duration::from_secs(config.request_timeout))
+        // create HTTP client with custom DNS resolution to proxy
+        // this mimics curl's --resolve flag: resolve the real hostname to our proxy address
         .resolve_to_addrs(
-            &config.rpc_provider_url.host,
-            &[proxy_addr.parse::<SocketAddr>()?],
+            &config.rpc_provider.host,
+            &[tcp_proxy_address.parse::<SocketAddr>()?],
         )
         .build()?;
 
@@ -76,7 +70,7 @@ pub async fn start_proxy_server(config: ProxyConfig) -> Result<()> {
         config: config.clone(),
     };
 
-    // Create CORS layer for MetaMask compatibility
+    // create CORS layer for web-app compatibility
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([
@@ -88,20 +82,20 @@ pub async fn start_proxy_server(config: ProxyConfig) -> Result<()> {
         ])
         .allow_headers(Any);
 
-    // Build the router
+    // build the router
     let app = Router::new()
-        .route("/", any(handle_proxy_request))
-        .route("/*path", any(handle_proxy_request))
+        .route("/", any(handle_request))
+        .route("/*path", any(handle_request))
         .layer(ServiceBuilder::new().layer(cors))
         .with_state(state);
 
-    // Create socket address
+    // create socket address
     let addr = SocketAddr::from((config.listen_address.parse::<IpAddr>()?, config.listen_port));
 
-    // Start the server
+    // start the server
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
-    // Run server with graceful shutdown
+    // run server with graceful shutdown
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
@@ -109,8 +103,8 @@ pub async fn start_proxy_server(config: ProxyConfig) -> Result<()> {
     Ok(())
 }
 
-/// Handle all proxy requests
-async fn handle_proxy_request(
+/// handle incoming requests
+async fn handle_request(
     State(state): State<AppState>,
     method: Method,
     request: Request,
@@ -119,14 +113,13 @@ async fn handle_proxy_request(
     let path = request.uri().path();
 
     info!(
-        "[{}] {} {} → {}",
+        "[{}] {} {}",
         chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ"),
         method,
-        path,
-        state.config.tcp_proxy_url
+        path
     );
 
-    // Handle OPTIONS requests for CORS preflight
+    // handle OPTIONS requests for CORS preflight
     if method == Method::OPTIONS {
         return Ok(Response::builder()
             .status(StatusCode::OK)
@@ -134,35 +127,35 @@ async fn handle_proxy_request(
             .unwrap());
     }
 
-    // Extract request body for POST requests
+    // extract request body for POST requests
     let body_bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    // Build upstream URL using the REAL hostname (not proxy)
-    // This works because we've configured DNS resolution to point the real hostname to our proxy
+    // build upstream URL using the REAL hostname (not proxy)
+    // this works because we've configured DNS resolution to point the real hostname to our proxy
     let upstream_url = format!(
         "{}://{}{}",
-        state.config.rpc_provider_url.scheme,
-        state.config.rpc_provider_url.full_host, // Use real hostname for SSL validation
-        state.config.rpc_provider_url.path
+        state.config.rpc_provider.scheme,
+        state.config.rpc_provider.full_host, // Use real hostname for SSL validation
+        state.config.rpc_provider.path
     );
 
-    // Create the upstream request
-    // No need to manually set Host header since we're using the real hostname in the URL
+    // create the upstream request
+    // no need to manually set Host header since we're using the real hostname in the URL
     let mut upstream_request = state
         .client
         .request(method.clone(), &upstream_url)
-        .timeout(state.config.timeout);
+        .timeout(Duration::from_secs(state.config.request_timeout));
 
-    // Add request body if present
+    // add request body if present
     if !body_bytes.is_empty() {
         upstream_request = upstream_request
             .header("Content-Type", "application/json")
             .body(body_bytes);
     }
 
-    // Execute the upstream request
+    // execute the upstream request
     match upstream_request.send().await {
         Ok(upstream_response) => {
             let status = upstream_response.status();
@@ -175,10 +168,10 @@ async fn handle_proxy_request(
                 elapsed.as_millis()
             );
 
-            // Convert response
+            // convert response
             let mut response_builder = Response::builder().status(status);
 
-            // Copy response headers (excluding hop-by-hop headers)
+            // copy response headers (excluding hop-by-hop headers)
             for (name, value) in upstream_response.headers() {
                 let header_name = name.as_str().to_lowercase();
                 if !is_hop_by_hop_header(&header_name) {
@@ -186,7 +179,7 @@ async fn handle_proxy_request(
                 }
             }
 
-            // Get response body
+            // get response body
             let response_bytes = upstream_response.bytes().await.map_err(|e| {
                 error!("Failed to read upstream response body: {}", e);
                 StatusCode::BAD_GATEWAY
@@ -201,6 +194,7 @@ async fn handle_proxy_request(
                 e
             );
 
+            // use JSON-RPC compatible error response
             let error_response = serde_json::json!({
               "jsonrpc": "2.0",
               "error": {
@@ -219,7 +213,7 @@ async fn handle_proxy_request(
     }
 }
 
-/// Check if a header is a hop-by-hop header that should not be forwarded
+/// check if a header is a hop-by-hop header that should not be forwarded
 fn is_hop_by_hop_header(header_name: &str) -> bool {
     matches!(
         header_name,
@@ -234,7 +228,7 @@ fn is_hop_by_hop_header(header_name: &str) -> bool {
     )
 }
 
-/// Handle graceful shutdown signals
+/// handle graceful shutdown signals
 async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()

@@ -1,6 +1,7 @@
 //! Listens for incoming messages from the mixnet and forwards them to the upstream server.
 //! Main difference from official TcpProxyServer is that it expects the upstream address to be provided in the first message.
 //! This allows for arbitrary RPC providers to be used.
+//! I try to keep the code as close as possible to the official TcpProxyServer.
 //! - Creating a mixnet client
 //! - Handling incoming messages from the mixnet
 //! - Forward to the upstream server

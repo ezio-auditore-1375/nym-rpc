@@ -1,6 +1,7 @@
 //! Listens for incoming messages to the socket and forwards them to exit node via mixnet.
 //! Main difference from official TcpProxyClient is that it includes the upstream address in the first message.
 //! This allows for arbitrary RPC providers to be used.
+//! I try to keep the code as close as possible to the official TcpProxyClient.
 //! TODO: disable cover traffic, add tests
 
 use crate::common::add_upstream_header;
@@ -23,7 +24,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument};
 
 #[derive(Clone)]
-pub struct NymProxyClient {
+pub struct TcpProxyClient {
     server_address: Recipient,
     upstream_address: String,
     listen_address: String,
@@ -33,7 +34,7 @@ pub struct NymProxyClient {
     cancel_token: CancellationToken,
 }
 
-impl NymProxyClient {
+impl TcpProxyClient {
     pub async fn new(
         server_address: Recipient,
         upstream_address: String,
@@ -45,7 +46,7 @@ impl NymProxyClient {
     ) -> Result<Self> {
         debug!("Loading env file: {:?}", env);
         setup_env(env); // Defaults to mainnet if empty
-        Ok(NymProxyClient {
+        Ok(TcpProxyClient {
             server_address,
             upstream_address,
             listen_address: listen_address.to_string(),
@@ -72,7 +73,7 @@ impl NymProxyClient {
             tokio::select! {
                 stream = listener.accept() => {
                     let (stream, _) = stream?;
-                        tokio::spawn(NymProxyClient::handle_incoming(
+                        tokio::spawn(TcpProxyClient::handle_incoming(
                             stream,
                             self.server_address,
                             self.upstream_address.clone(),

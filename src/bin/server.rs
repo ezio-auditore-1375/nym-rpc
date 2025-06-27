@@ -4,77 +4,47 @@ use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_rpc::tcp_proxy_server::{TcpProxyHttpConfig, TcpProxyServer};
 use std::path::PathBuf;
 use tracing::{error, info};
-use tracing_subscriber;
 
 #[derive(Debug, Parser)]
 #[command(name = "nym-rpc-server")]
-#[command(about = "Nym RPC tools for TCP proxy and message signing")]
+#[command(
+    about = "Receives RPC requests through the mixnet, forwards them to the specified RPC provider, and replies with the response via SURBs"
+)]
 struct Args {
-    /// Path to the configuration directory
+    // listen address for the HTTP API
+    #[clap(long, default_value = "127.0.0.1")]
+    api_listen_address: String,
+
+    // listen port for the HTTP API
+    #[clap(long, default_value = "8545")]
+    api_listen_port: u16,
+
+    // path to the NYM client configuration directory
     #[clap(short, long, default_value = ".")]
     config_dir: PathBuf,
 
-    /// Environment file path
+    // nym env filepath to create the nym client with
+    // if none provided we use the default mainnet env file
     #[clap(short, long)]
     env: Option<String>,
-
-    /// HTTP API bind address
-    #[clap(long, default_value = "0.0.0.0:8080")]
-    http_bind_address: String,
-
-    /// Node description name/moniker
-    #[clap(long, default_value = "Nym TCP Proxy Server")]
-    description_name: String,
-
-    /// Node description details
-    #[clap(long, default_value = "Anonymous TCP proxy using Nym mixnet")]
-    description_text: String,
-
-    /// Node website/link (optional)
-    #[clap(long)]
-    description_link: Option<String>,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging FIRST, before anything else
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
-        .init();
-
+    nym_bin_common::logging::setup_tracing_logger();
     let args = Args::parse();
 
-    run_server(
-        args.config_dir,
-        args.env,
-        args.http_bind_address,
-        args.description_name,
-        args.description_text,
-        args.description_link,
-    )
-    .await
-}
-
-async fn run_server(
-    config_dir: PathBuf,
-    env: Option<String>,
-    http_bind_address: String,
-    description_name: String,
-    description_text: String,
-    description_link: Option<String>,
-) -> Result<()> {
     info!("Starting Nym TCP Proxy Server...");
 
-    let config_dir = config_dir.to_string_lossy().to_string();
+    let config_dir = args.config_dir.to_string_lossy().to_string();
+    let http_bind_address = format!("{}:{}", args.api_listen_address, args.api_listen_port);
 
     info!("HTTP API enabled on {}", http_bind_address);
 
     let description = NodeDescription {
-        moniker: description_name,
-        details: description_text,
-        website: description_link.unwrap_or_default(),
+        moniker: "nym-rpc-server".to_string(),
+        details: "Nym RPC server".to_string(),
+        website: "https://github.com/ezio-auditore-1375/nym-rpc".to_string(),
         security_contact: "".to_string(), // Could be made configurable
     };
 
@@ -84,7 +54,7 @@ async fn run_server(
         expose_system_info: true,
     };
 
-    let mut server = TcpProxyServer::new_with_http(&config_dir, env, http_config).await?;
+    let mut server = TcpProxyServer::new_with_http(&config_dir, args.env, http_config).await?;
 
     // Start HTTP server if enabled
     let _http_handle = server.start_http_server().await?;
