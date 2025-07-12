@@ -33,15 +33,10 @@ See [architecture diagram](./docs/architecture_diagram.mmd) for visual represent
 
 ## TODO
 
-Major tasks before the project is turned in.
-
 - detect misbehaving nodes
-
-### Later
-
 - allowlist
-- memory: prune sessions
 - node discovery
+- memory: prune sessions
 
 ## Installation
 
@@ -69,3 +64,10 @@ curl -vX POST http://localhost:8545 \
 ```
 
 5. Connect with your wallet (http://localhost:8545)
+
+### Metamask ETH Mainnet
+
+- Make sure `nym-rpc-client` is running and http://localhost:8545 is available
+- Go to metamask and add a new RPC for Ethereum Mainnet
+  - Do not try to add it into test networks, this will not work
+- Add 'http://localhost:8545'
